@@ -28,7 +28,6 @@ pub fn comparison_count_sort(c: &mut Criterion) {
 
     do_bench::<u64, _>(&mut group, "baseline", &vals);
     do_bench::<WrapUnsafeCnt, _>(&mut group, "unsafe", &vals);
-    do_bench::<WrapUnsafeToggleableCnt, _>(&mut group, "toggleable unsafe", &vals);
     do_bench::<WrapCellThreadLocal, _>(&mut group, "thread local cell", &vals);
     do_bench::<WrapAtomic, _>(&mut group, "atomic", &vals);
 }

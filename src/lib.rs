@@ -109,71 +109,6 @@ impl From<u64> for WrapUnsafeCnt {
     }
 }
 
-// --------------------------------------------------------------
-static mut UNSAFE_CNT_TOGGLEABLE: u64 = 0;
-static mut UNSAFE_CNT_TOGGLE: bool = true;
-pub fn get_unsafe_toggleable_counter() -> u64 {
-    unsafe {
-        UNSAFE_CNT_TOGGLEABLE
-    }
-}
-pub fn reset_unsafe_toggleable_counter() {
-    unsafe {
-        UNSAFE_CNT_TOGGLEABLE = 0;
-    }
-}
-
-pub struct CountSwitchOff;
-impl Default for CountSwitchOff {
-    fn default() -> Self {
-        unsafe {
-            assert!(UNSAFE_CNT_TOGGLE, "already toggled off!");
-            UNSAFE_CNT_TOGGLE = false;
-        }
-        Self
-    }
-}
-impl Drop for CountSwitchOff {
-    fn drop(&mut self) {
-        unsafe {
-            assert!(!UNSAFE_CNT_TOGGLE, "already toggled on!");
-            UNSAFE_CNT_TOGGLE = true;
-        }
-    }
-}
-
-#[derive(Eq)]
-pub struct WrapUnsafeToggleableCnt(u64);
-impl PartialEq for WrapUnsafeToggleableCnt {
-    #[inline(always)]
-    fn eq(&self, other: &Self) -> bool {
-        self.cmp(other).is_eq()
-    }
-}
-impl Ord for WrapUnsafeToggleableCnt {
-    #[inline(always)]
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        unsafe {
-            if UNSAFE_CNT_TOGGLE {
-                UNSAFE_CNT_TOGGLEABLE += 1;
-            }
-        }
-        self.0.cmp(&other.0)
-    }
-}
-impl PartialOrd for WrapUnsafeToggleableCnt {
-    #[inline(always)]
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-impl From<u64> for WrapUnsafeToggleableCnt {
-    fn from(value: u64) -> Self {
-        Self(value)
-    }
-}
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -189,7 +124,6 @@ mod tests {
     fn check_size() {
         assert_eq!(size_of::<u64>(), size_of::<WrapAtomic>());
         assert_eq!(size_of::<u64>(), size_of::<WrapUnsafeCnt>());
-        assert_eq!(size_of::<u64>(), size_of::<WrapUnsafeToggleableCnt>());
         assert_eq!(size_of::<u64>(), size_of::<WrapCellThreadLocal>());
     }
 
@@ -202,30 +136,9 @@ mod tests {
         vec_from::<WrapAtomic>(&vals).sort();
         vec_from::<WrapUnsafeCnt>(&vals).sort();
         vec_from::<WrapCellThreadLocal>(&vals).sort();
-        vec_from::<WrapUnsafeToggleableCnt>(&vals).sort();
 
         assert_eq!(get_cell_counter(), get_atomic_counter());
         assert_eq!(get_cell_counter(), get_unsafe_counter());
-        assert_eq!(get_cell_counter(), get_unsafe_toggleable_counter());
-    }
-
-    #[test]
-    fn check_toggle() {
-        let n = 10000;
-        let rng = rand::thread_rng();
-        let vals: Vec<u64> = rng.sample_iter(Standard).take(n).collect();
-
-        let before = get_unsafe_toggleable_counter();
-        let switch = CountSwitchOff::default();
-        vec_from::<WrapUnsafeToggleableCnt>(&vals).sort();
-        drop(switch);
-        let after = get_unsafe_toggleable_counter();
-        assert_eq!(before, after);
-
-        vec_from::<WrapUnsafeToggleableCnt>(&vals).sort();
-        assert_ne!(before, get_unsafe_toggleable_counter());
-
-        reset_unsafe_toggleable_counter();
     }
 }
 
